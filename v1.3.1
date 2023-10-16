@@ -2,3 +2,32 @@ link to 1.3.1 (1.3 with working knockdown animations for NPC)
 
 https://drive.google.com/file/d/1pD_lgSuMmxhiuXPQTIanqXQLryp4-gtY/view?usp=drive_link 
 
+script used by me. not just to be marked (rest in drive)
+
+HealthBar.cs
+
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+
+public class HealthBar : MonoBehaviour
+{
+
+    public Slider slider;
+
+    public void SexMaxHealth(int health)
+    {
+        slider.maxValue = health;
+        slider.value = health;
+    }
+
+    public void SetHealth(int health)
+    {
+        slider.value = health;
+    }
+}
+
+
+
+
