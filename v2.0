@@ -1,3 +1,270 @@
 link to v2.0 below
 
 https://drive.google.com/file/d/1ePBXYV4AGYJZYARzUHuXgo9Ya-TnQkgS/view?usp=drive_link 
+
+Character.cs and GameController.cs below.
+
+Character.cs
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+public class Character : MonoBehaviour
+{
+    //Variables for gravity and Jumping	 
+	public float Gravity = -9.81f;								//Sets the float variable Gravity level that affects the player.. 
+    public float GroundDistance = 0.2f;							//sets the float ground distance varibale that is used for checking distance between the jumping and falling to the ground.
+    public LayerMask Ground;									//sets the layermask as the ground for the isgrounded script
+	public bool Grounded => m_Grounded;							//Bool for checking being grounded and equal or greater than being grounded
+	bool m_Grounded;											//Bool for grounded
+	float m_GroundedTimer;										//Timer for checking if grounded.. giving a delay to land
+    private Transform _groundChecker;							//Checkes against where the location of the groundchecker/characters feet (where object is) is in relation to the character
+
+	//public Camera MainCamera;
+	public Transform CameraPosition;							//Maincamera settings for moving the camera attached to the player.
+  
+	private CharacterController m_CharacterController;			//sets the charactercontroller variable for calling movement
+	private Vector2 turn;										//used for mouse look and mouse turning the character
+	private Vector3 _velocity;									//Vector3 commands for character controll to do with velocity running or moving or juming
+
+	//Player Settings
+	public float MouseSensitivity = .0001f;						//Sets mouse sensitivity float variable
+    public float Speed = 5f;									//Sets float speed settings
+    public float JumpHeight = 2f;								//Sets float jumpheight settings
+	public float DashDistance = 5f;								//Sets float Dash Distance character settings
+    float m_VerticalAngle, m_HorizontalAngle;					//Sets Verticalangle and horizontalangle for mouse turn
+	float m_VerticalSpeed = 0.0f;								//Sets the mouse vertical speed for turning
+	public float RunningSpeed = 7.0f;							//Sets the running speed for the character
+	public float PlayerSpeed = 5.0f;							//Sets the playerspeed for the character
+	public float JumpSpeed = 5.0f;								//Sets the Jump Speed for the character
+	float m_SpeedAtJump = 0.0f;									//Sets the mouse speed at jump
+	float turnSmoothTime = 0.1f;								//Sets the turning rate for the mouse look to be smooth not fast and jerky
+	float turnSmoothVelocity;									//Sets the turn smooth velocity to make it smoother
+
+	//Health System
+	public int maxHealth = 100;									//Sets the max health for the main player
+	public int currentHealth;									//Sets the current healt variable for the player
+	public HealthBar healthBar;									//Sets the healthbar script link for the main character
+	
+	//Animation
+	private Animator animator;									//Calls the Animator game function to animate the character to move
+	private string currentState;								//Calls the currentstate for animation 
+	
+	//Bullets
+	public SpawnProjectile spawnProjectile;						//Links the spawnprojectile script to this script to call bullet firing
+	
+	//Animation States
+	const string PLAYER_IDLE = "Player_Idle";					//Calls/Plays the animation state
+	const string PLAYER_WALK = "Player_Walk";					//Calls/Plays the animation state
+	const string PLAYER_RUN = "Player_Run";						//Calls/Plays the animation state
+	const string PLAYER_JUMP = "Player_Jump";					//Calls/Plays the animation state
+	const string PLAYER_FALL = "Player_Fall";					//Calls/Plays the animation state
+	const string PLAYER_JUMPLAND = "Player_JumpLand";			//Calls/Plays the animation state
+	const string PLAYER_STARTKNEEL = "Player_StandToKneel";		//Calls/Plays the animation state
+	const string PLAYER_DEATH = "Player_Death";					//Calls/Plays the animation state
+	const string PLAYER_HIT = "Player_Hit";						//Calls/Plays the animation state
+	const string PLAYER_RIFLEDRAW = "Player_RifleDraw";			//Calls/Plays the animation state
+	const string PLAYER_RIFLEHOLSTER = "Player_RifleHolster";	//Calls/Plays the animation state
+	const string PLAYER_RIFLEAIM = "Player_RifleAim";			//Calls/Plays the animation state
+
+    private void Start()
+    {
+		m_CharacterController = GetComponent<CharacterController>();	//Sets the character controller settings for the character
+        _groundChecker = transform.GetChild(0);					//Checks where the groundchecker child object is and gets its location
+		animator = GetComponent<Animator>();					//Calls the animator game function
+		
+		//Setting Health and healthbar
+		currentHealth = maxHealth;								//Sets the maxhealth as the currenthealth
+		healthBar.SetMaxHealth(maxHealth);						//Sets the maxhealth value on the healthbar
+    }
+
+    private void Update()
+    {
+		
+		bool wasGrounded = m_Grounded;							//Sets the bool for being grounded
+        bool loosedGrounding = false;							//Sets the bool for not being grounded
+
+		//Animations
+		if(animator != null)									//Checks to see if the animator is loaded
+		
+		if (!m_CharacterController.isGrounded)					//If statement - if character is grounded or not
+        {
+            if (m_Grounded)										//if mouse grounded
+            {
+                m_GroundedTimer += Time.deltaTime;				//timer for how long the character is grounded or not being grounded
+                if (m_GroundedTimer >= 0.5f)					//Timer if the person has or has not being grounded is longer than .5f
+                {
+                    loosedGrounding = true;						//changes the bool to true, which is the characer is in the air
+                    m_Grounded = false;							//sets the bool to false which is the character is not standing on the ground
+                }
+            }
+        }
+        else
+        {
+            m_GroundedTimer = 0.0f;								//time to check the character is on the ground for a certain time
+            m_Grounded = true;									//sets the bool for the character being grounded is true
+        }
+
+        Speed = 5;												//Sets the character speed value to 5
+        Vector3 move = Vector3.zero;							//Vector3 move = vector3.zero - sets the move variable for the character is not moving at all
+            // Jump (we do it first as 
+            if (m_Grounded && Input.GetButtonDown("Jump"))		//If standing on the ground and you push the jump button
+            {
+                m_VerticalSpeed = JumpSpeed;					//set the verticalspeed value equal to the jumpspeed value
+                m_Grounded = false;								//changes the bool setting for standing on the ground to false
+                loosedGrounding = true;							//sets the bool setting to true as the character is jumping
+            }
+            
+            bool running = Input.GetButton("Run");				//sets the bool for if the character is running if the user pushs the run/sprint button
+            float actualSpeed = running ? RunningSpeed : PlayerSpeed;	//sets the running speed to the playerspeed varible to show on the inspector
+
+            if (loosedGrounding)								//if the character is in the air
+            {
+                m_SpeedAtJump = actualSpeed;					//actual speed of the jump
+            }
+
+            // Move around with WASD
+            float horizontal = Input.GetAxisRaw("Horizontal");	//setting the wasd keys for movement and gets the horizontal keys
+			float vertical = Input.GetAxisRaw("Vertical");		//setting the wasd keys for movement and gets the vertical keys
+			
+			Vector3 direction = new Vector3(horizontal, 0f, vertical).normalized;	//Setting to make the character move foward and backwards and sideways... the vertical value is 0 as it wont jump with this command
+			
+			//Mouse Look
+			if(direction.magnitude >= 0.1f)						//if mouse direction is greater than 0.1f
+			{
+				float targetAngle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg + CameraPosition.eulerAngles.y;	//sets the targetangle for the sideways and up and down motion with the mouse
+				float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref turnSmoothVelocity, turnSmoothTime); //sets the angle with the smoothing values to stop the mouse movement being fast
+				transform.rotation = Quaternion.Euler(0f, angle, 0f); //moves the main camera which is attached to the player
+				
+				Vector3 moveDir = Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward; //moves the main camera to the target angle
+				
+				m_CharacterController.Move(moveDir.normalized * Speed * Time.deltaTime); //character movement smoothed out * speed and time
+			}
+
+            float usedSpeed = m_Grounded ? actualSpeed : m_SpeedAtJump; // float variable to check grounded settings and speed at jumping
+            
+	       // Fall down / gravity
+        m_VerticalSpeed = m_VerticalSpeed - 10.0f * Time.deltaTime;		//gravity script for jumping and falling
+        if (m_VerticalSpeed < -10.0f)									//if jumpspeed is less than 10
+            m_VerticalSpeed = -10.0f; // max fall speed					//sets fall speed
+        var verticalMove = new Vector3(0, m_VerticalSpeed * Time.deltaTime, 0);	//falls at the set speed downwards
+        var flag = m_CharacterController.Move(verticalMove);			//sets a flag variable for jumping/falling
+        if ((flag & CollisionFlags.Below) != 0)							//called an if statement if falling and what is colliding below the character does not equal 0
+            m_VerticalSpeed = 0;										//sets the falling jump speed to 0
+
+		//Get Keys for Movement
+		
+		if(m_Grounded && !Input.anyKey) 						//If no key is pressed play Idle animator
+		{
+				ChangeAnimationState(PLAYER_IDLE);				//Plays the animation state Playeridle if character is grounded and no keys are pushed
+		}
+
+		 //Run Animation for holding shift and any of the WASD keys
+		if (Input.GetKey(KeyCode.LeftShift) && Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.LeftShift) && Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.LeftShift) && Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftShift) && Input.GetKey(KeyCode.S))
+		{
+			ChangeAnimationState(PLAYER_RUN);					//Plays the animation state Player run
+			Speed = 30f;										//Sets the character run speed to 30 float speed
+		}
+			//Walk animation for not holding shift and any use of the WASD keys... 
+			else if (!Input.GetKey(KeyCode.LeftShift) && Input.GetKey(KeyCode.W) || !Input.GetKey(KeyCode.LeftShift) && Input.GetKey(KeyCode.D) || !Input.GetKey(KeyCode.LeftShift) && Input.GetKey(KeyCode.A) || !Input.GetKey(KeyCode.LeftShift) && Input.GetKey(KeyCode.S))
+			{
+				Speed = 5f;										//Sets speed float of the walking movement
+				ChangeAnimationState(PLAYER_WALK);				//Plays the Walk animation state
+			}
+			
+		if (Input.GetKey("space")) 								//Jump Animation if statement
+		{
+			ChangeAnimationState(PLAYER_JUMP);					//Plays the Jump animation state
+		}		
+		if (!m_Grounded && _velocity.y > .01)					//if statement for if is not grounded and velocity is more than .01
+		{
+			ChangeAnimationState(PLAYER_FALL);					//plays the falling animation state
+			ChangeAnimationState(PLAYER_JUMPLAND);				//plays the landing animation state
+		}
+
+		if (Input.GetKey(KeyCode.LeftControl))					//if the user pushes the left control button
+		{	
+			ChangeAnimationState(PLAYER_STARTKNEEL);			//play the crouch animation state
+		}	
+
+		if (Input.GetKeyDown(KeyCode.Mouse0))					//Get Mouse0 button down (left mouse)
+		{
+			ChangeAnimationState(PLAYER_RIFLEAIM);				//play rifle aim animation
+			FindObjectOfType<AudioManager>().Play("PlayerShoot"); //Finds the audio file name in the AudioManager Array and then plays it
+			spawnProjectile.FireBullet();						//calls the linked spawnprojectile script and the firebullet function in it to fire the bullet.
+		}
+
+	
+
+		void ChangeAnimationState(string newState)				//function for change animation with a string to call the animation state
+		{
+			if (currentState == newState) return; 				//stop the same animation from interrupting itself
+			animator.Play(newState); 							//Play the animation
+			currentState = newState; 							//reassign the new state
+		}
+
+		void TakeDamage(int damage)								//function to take damage with the int of how much damage
+		{
+			currentHealth -= damage;							//current health minus how much damage is passed to the function
+			healthBar.SetHealth(currentHealth);					//changes the healthbar to show the current health value
+		}
+	}
+}
+
+GameController.cs below.
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+
+public class GameController : MonoBehaviour
+{
+	//Adding External Scripts
+	public GameOverTimeOut GameOverTimeOut; 						//Links the GameOverTimeOut script to this script, to be able to access its functions
+	public GameOverScreen GameOverScreen; 							//Links the GameOverScreen script to this script, to be able to access its functions
+	public TimerUI TimerUI; 										//Links the TimerUI script to this script, to be able to access its functions
+	public int score = 0; 												//Sets the variable and classes it as a integer
+
+	void Start()
+	{
+		score = 0; 													//resets the score variable to 0 on start
+		int amountToChange = 0; 									//resets the variable to 0 on start
+		
+		FindObjectOfType<AudioManager>().Play("BackgroundWind"); 	//Finds the audio file name in the AudioManager Array and then plays it
+	}
+
+	public void Update()
+	{
+		if(score != 3) 												// if score is not equal to 3 then the first box is true, the else box is false, then it runs that
+		{
+		}
+		else 														// as score does not equal 3, it runs the below..
+		{
+			TimerUI.StopTimerOnWon(); 								//Calls the stoptimer function in the timerui script and turns off timer
+			GameOverScreen.Setup(score); 							//calls the setup function in the gameoverscreen script and passes it the score variable
+		}
+	}
+
+	public void GameOver() 											// GameOver Function
+	{
+		GameOverScreen.Setup(score); 								// Calls the setup function from the GaveOverScreen script and passes it the score variable
+	}
+
+	private void Awake() 											// Awake Function, left here as might need for possible updates
+	{
+		
+	}
+
+	void SpawnEnemies() 											// SpawnEnemies Function, left here as might need for possible updates
+	{
+
+	}
+
+	public void EnemysDeath(int amountToChange) 					// EnemysDeath Function - this is where it does the function with a variable passed to it, score + amounttochange, eg 1.
+	{
+		score += amountToChange;									// score plus the variable passed.. eg 1... so 1 plus 1.. or 2 plus 1.. as its being only passed the number 1 after each death.
+		return;
+	}
+}
+
